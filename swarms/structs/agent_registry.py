@@ -109,8 +109,6 @@ class AgentRegistry:
         """
         name = agent.agent_name
 
-        self.agent_to_py_model(agent)
-
         with self.lock:
             if name in self.agents:
                 logger.error(
@@ -120,7 +118,13 @@ class AgentRegistry:
                     f"Agent with name {name} already exists."
                 )
             try:
+                # Build the schema entry before mutating anything, so a
+                # rejected add leaves the registry exactly as it was.
+                self.agent_to_py_model(agent)
                 self.agents[name] = agent
+                self.agent_registry.number_of_agents = len(
+                    self.agents
+                )
                 logger.info(f"Agent {name} added successfully.")
             except ValidationError as e:
                 logger.error(f"Validation error: {e}")
@@ -162,6 +166,9 @@ class AgentRegistry:
         with self.lock:
             try:
                 del self.agents[agent_name]
+                self.agent_registry.number_of_agents = len(
+                    self.agents
+                )
                 logger.info(
                     f"Agent {agent_name} deleted successfully."
                 )

@@ -994,3 +994,46 @@ if __name__ == "__main__":
         print(
             "   pytest test_agent_registry.py::test_agent_registry_initialization"
         )
+
+
+class _StubAgent:
+    """Minimal Agent stand-in: add() reads only these and to_dict()."""
+
+    def __init__(self, name: str):
+        self.agent_name = name
+        self.id = f"stub-{name}"
+        self.description = "stub agent"
+
+    def to_dict(self):
+        return {"agent_name": self.agent_name}
+
+
+def test_rejected_add_leaves_registry_log_unchanged():
+    """A duplicate add raises but must not mutate the registry schema log."""
+    registry = AgentRegistry()
+    agent = _StubAgent("dup-agent")
+
+    registry.add(agent)
+    assert len(registry.agent_registry.agents) == 1
+
+    with pytest.raises(ValueError):
+        registry.add(agent)
+
+    assert len(registry.agent_registry.agents) == 1, (
+        "A rejected add appended a second schema for the same agent: "
+        f"{[entry.name for entry in registry.agent_registry.agents]}"
+    )
+    assert list(registry.agents) == ["dup-agent"]
+
+
+def test_number_of_agents_tracks_the_registry():
+    """number_of_agents must follow every add and delete."""
+    registry = AgentRegistry()
+    assert registry.agent_registry.number_of_agents == 0
+
+    registry.add(_StubAgent("agent-one"))
+    registry.add(_StubAgent("agent-two"))
+    assert registry.agent_registry.number_of_agents == 2
+
+    registry.delete("agent-one")
+    assert registry.agent_registry.number_of_agents == 1
